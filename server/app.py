@@ -2,11 +2,15 @@
 
 import os
 from flask import Flask
+from flask_cors import CORS
 from server.api import api
 
 
 def create_app(settings_overrides=None):
     app = Flask(__name__)
+    # Allow cross-site requests. TODO: Limit this to client on
+    # localhost:8000
+    CORS(app)
     configure_settings(app, settings_overrides)
     configure_blueprints(app)
     return app

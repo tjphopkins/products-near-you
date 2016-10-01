@@ -157,7 +157,29 @@
     this.prefs = prefs;
 
     this.search = function(cb) {
-      // TODO: Implement this.
+      var jqXHR = $.ajax({
+          type: 'GET',
+          dataType: 'json',
+          url: 'http://localhost:5000/search',
+          data: {
+            count: JSON.stringify(this.prefs.count),
+            radius: JSON.stringify(this.prefs.radius),
+            lat: JSON.stringify(this.prefs.position.lat),
+            lng: JSON.stringify(this.prefs.position.lng),
+            tags: this.prefs.tags.join(',')
+          }
+      });
+
+      jqXHR.done(function(response) {
+        if (response.success == 'false') {
+          cb(response.err_msg, null);
+        };
+        cb(null, response.products);
+      });
+
+      jqXHR.fail(function(response) {
+        cb(response.statusText, null);
+      });
     };
   };
 

@@ -8,7 +8,7 @@ api = Blueprint('api', __name__)
 
 def data_path(filename):
     data_path = current_app.config['DATA_PATH']
-    return u"%s/%s" % (data_path, filename)
+    return u"%s/%s"  % (data_path, filename)
 
 
 @api.route('/search', methods=['GET'])

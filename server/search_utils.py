@@ -1,4 +1,5 @@
 import math
+from haversine import haversine
 
 
 class BoundingBox(object):
@@ -13,6 +14,9 @@ def find_bounding_box(search_lat, search_lng, search_radius):
     """Quick and dirty method to find bounding lat-lng box to narrow down
     search. Assumes Earth is flat around search area (fine for a small search
     radius). Inaccurate near the poles.
+
+    search_lat and search_lng in degrees
+    search_radius in km
     """
     search_lat_rads = math.radians(search_lat)
     search_lng_rads = math.radians(search_lng)
@@ -30,3 +34,15 @@ def find_bounding_box(search_lat, search_lng, search_radius):
         math.degrees(lat_min), math.degrees(lat_max),
         math.degrees(lng_min), math.degrees(lng_max)
     )
+
+
+def is_within_search_radius(
+        search_lat, search_lng, mark_lat, mark_lng, search_radius):
+    """Use haversine formula to check if shop is within search_radius of
+    shop location.
+
+    All lat and lng in degrees
+    search_radius in km
+    """
+    return haversine((search_lat, search_lng), (mark_lat, mark_lng)) \
+        <= search_radius

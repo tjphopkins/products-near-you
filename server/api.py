@@ -31,9 +31,7 @@ class InvalidParam(Exception):
 
 
 def _get_and_validate_get_params():
-    print "request.args", request.args
     count = request.args.get('count')
-    print "count", count
     if not count:
         raise EmptyParam('count')
     count = int(count)
@@ -59,7 +57,10 @@ def _get_and_validate_get_params():
     if abs(lng) > 180:
         raise InvalidParam("Longitude must be between -180 and 180 degrees")
 
-    return count, radius, lat, lng
+    tags = request.args.get('tags')
+    tags = tags.split(',') if tags else []
+
+    return count, radius, lat, lng, tags
 
 
 @api.route('/search', methods=['GET'])
@@ -74,7 +75,7 @@ def search():
     :return array of products
     """
     try:
-        count, radius, lat, lng = _get_and_validate_get_params()
+        count, radius, lat, lng, tags = _get_and_validate_get_params()
     except (InvalidParam, EmptyParam) as e:
         return jsonify({
             'success': False,
@@ -82,6 +83,6 @@ def search():
         })
 
     products = find_most_popular_products_in_search_area(
-        lat, lng, radius, count)
+        lat, lng, radius, count, tags)
 
     return jsonify({'products': products})

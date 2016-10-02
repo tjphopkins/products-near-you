@@ -1,11 +1,14 @@
 import csv
 from copy import deepcopy
+from collections import defaultdict
 
 from server.search_utils import find_bounding_box, is_within_search_radius
 
 
 SHOPS_BY_LAT = {}
 SHOPS_BY_LNG = {}
+SHOPS_BY_TAG = defaultdict(list)
+TAGS_BY_NAME = {}
 SHOPS_BY_ID = {}
 
 
@@ -20,8 +23,8 @@ a kd-tree.
 
 In this case it would not be necessary to construct SHOPS_BY_LAT and
 SHOPS_BY_LNG, but instead an array of tuples of the form
-(shop_lat, shop_lng, shop_id), along with SHOPS_BY_ID. Then
-_find_shops_within_search_radius will need to be rewritten.
+(shop_lat, shop_lng, shop_id), along with SHOPS_BY_ID and SHOPS_BY_TAG. Then
+_find_shops_within_search_radius_with_tag will need to be rewritten.
 """
 
 
@@ -48,7 +51,7 @@ def _process_products():
     """Process products.csv. Populates SHOPS_BY_ID with products."""
     with open('data/products.csv') as csvfile:
         products_reader = csv.reader(csvfile)
-        products_reader.next() # ignore the headings
+        products_reader.next()
         for row in products_reader:
             product_id, shop_id, title, popularity, quantity = row
             if quantity > 0:
@@ -58,26 +61,58 @@ def _process_products():
                     'popularity': popularity
                 })
 
+def _process_tags():
+    """
+    Process tags.csv and taggings.csv. Populates:
+    * SHOPS_BY_TAG
+    * TAGS_BY_NAME
+    """
+    with open('data/tags.csv') as csvfile:
+        tags_reader = csv.reader(csvfile)
+        tags_reader.next()
+        for row in tags_reader:
+            tag_id, tag_name = row
+            TAGS_BY_NAME[tag_name] = tag_id
+
+    with open('data/taggings.csv') as csvfile:
+        taggings_reader = csv.reader(csvfile)
+        taggings_reader.next()
+        for row in taggings_reader:
+            tagging_id, shop_id, tag_id = row
+            SHOPS_BY_TAG[tag_id].append(shop_id)
+
 
 def process_data():
     """Process csv files and store data in memory."""
     _process_shops()
     _process_products()
+    _process_tags()
 
 
 def find_most_popular_products_in_search_area(
-        search_lat, search_lng, search_radius, num_products):
+        search_lat, search_lng, search_radius, num_products, tags):
     """
     :arg search_lat float - latitude of search location in degrees
     :arg search_lng float - longitude of serch location in degrees
     :arg num_products int - number of products to return
     """
-    shop_ids = _find_shops_within_search_radius(
-        search_lat, search_lng, search_radius)
+    shop_ids = _find_shops_within_search_radius_with_tag(
+        search_lat, search_lng, search_radius, tags)
     return _find_most_popular_products_by_shops(shop_ids, num_products)
 
 
-def _find_shops_within_search_radius(search_lat, search_lng, search_radius):
+def _filter_shops_by_tag(shops, tags):
+    shops_with_at_least_one_tag = []
+    tag_ids = [TAGS_BY_NAME[tag_name] for tag_name in tags
+               if TAGS_BY_NAME.get(tag_name)]
+    for tag_id in tag_ids:
+        shops_with_at_least_one_tag += SHOPS_BY_TAG[tag_id]
+
+    return set(shops_with_at_least_one_tag).intersection(shops)
+
+
+def _find_shops_within_search_radius_with_tag(
+        search_lat, search_lng, search_radius, tags):
     """
     Returns a list of shop_ids corresponding to shops within search_radius
     from the search location.
@@ -85,6 +120,7 @@ def _find_shops_within_search_radius(search_lat, search_lng, search_radius):
     :arg lat float - latitude of search location in degrees
     :arg lng float - longitude of search location in degrees
     :arg search_radius int - search radius
+    :arg tags array  - array of tag names
     """
 
     """
@@ -107,8 +143,15 @@ def _find_shops_within_search_radius(search_lat, search_lng, search_radius):
     shops_in_bounding_box = set(shops_in_lat_bounds).intersection(
         set(shops_in_lng_bounds))
 
+    # Narrow down further by tag before checking actual distances from
+    # search location
+    if tags:
+        shops_to_check = _filter_shops_by_tag(shops_in_bounding_box, tags)
+    else:
+        shops_to_check = shops_in_bounding_box
+
     shops_in_search_radius = []
-    for shop_id in shops_in_bounding_box:
+    for shop_id in shops_to_check:
         shop = SHOPS_BY_ID[shop_id]
         if is_within_search_radius(
                 search_lat, search_lng, shop['lat'],

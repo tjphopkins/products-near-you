@@ -24,7 +24,7 @@ def find_bounding_box(search_lat, search_lng, search_radius):
     mean_radius_of_earth = 6371.0
     adjacent_radius = mean_radius_of_earth * math.cos(search_lat_rads)
 
-    # notice that the length of the bounding box is slightly increased 
+    # notice that the length of the bounding box is slightly increased
     # for safety
     lat_min = search_lat_rads - 1.01 * (search_radius / mean_radius_of_earth)
     lat_max = search_lat_rads + 1.01 * (search_radius / mean_radius_of_earth)

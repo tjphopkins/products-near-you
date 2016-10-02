@@ -4,6 +4,7 @@ import os
 from flask import Flask
 from flask_cors import CORS
 from server.api import api
+from server.data import process_data
 
 
 def create_app(settings_overrides=None):
@@ -13,6 +14,7 @@ def create_app(settings_overrides=None):
     CORS(app)
     configure_settings(app, settings_overrides)
     configure_blueprints(app)
+    process_data()
     return app
 
 

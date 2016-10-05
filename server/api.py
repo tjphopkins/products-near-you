@@ -22,7 +22,7 @@ class InvalidParam(Exception):
         self.message = message
 
     def __str__(self):
-        return message
+        return self.message
 
 
 def _get_and_validate_get_params():

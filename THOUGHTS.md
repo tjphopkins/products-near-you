@@ -15,9 +15,22 @@ necessary to construct SHOPS_BY_LAT and SHOPS_BY_LNG, but instead an array of tu
 SHOPS_BY_TAG.
 
 
+1. How would your design change if the data was not static (i.e updated
+frequently during the day)?
 
-1. How would your design change if the data was not static (i.e updated frequently
-during the day)?
+Assuming it is the csv files that are being updated frequently, I would have
+a background process that periodically rebuilds the data dictionaries. In this
+case there would have to be some latency between the csv being updated and the
+new data being available to search requests. If however we can forget the csv files once the data dictionaries have been initally populated, we could write
+api methods to update these dictionaries with new data.
 
-2. Do you think your design can handle 1000 concurrent requests per second? If not, what
-would you change?
+We would however have a problem here when thinking about concurrent clients,
+as would be the case in any real-life app. This is because, at is stands,
+each client would have their own version of the data dictionaries, since
+we shouldn't share memory between processes. We'll need an external database! ;)
+
+2. Do you think your design can handle 1000 concurrent requests per second? If not, what would you change?
+
+Firsty, I would use a server that can handle concurrent requets as opposed to
+the Flask development server. We would want a number of workers, or a worker
+using coroutines for asynchronous requests. Since no two processes should share access to memory, we would want each to have their own version of the data dictionaries.

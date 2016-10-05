@@ -34,6 +34,9 @@ def process_data(app):
     of duplication of information and increased memory usuage. Given that there
     are currently only around 10000 products and 10000 shops, there is probably
     not much in it. But it paves the way for having more data items.
+
+    There is a big flaw in this: It assumes no two shops will be at exactly
+    the same latitude or longitude.
     """
     data_path_fn = data_path(app)
     _process_shops(data_path_fn)

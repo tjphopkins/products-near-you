@@ -63,9 +63,10 @@ def search():
     """Search endpoint.
 
     :param count, number of products to return
-    :param radius
-    :param lat
-    :param lng
+    :param radius, radius of search area in metres
+    :param lat, latitude of search location in degrees
+    :param lng, longitude of search location in degrees
+    :param tags, list of tag names to match
 
     :return array of products
     """
@@ -80,4 +81,4 @@ def search():
     products = find_most_popular_products_in_search_area(
         lat, lng, radius, tags, count)
 
-    return jsonify({'products': products})
+    return jsonify({'success': True, 'products': products})

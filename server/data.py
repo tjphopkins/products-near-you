@@ -8,8 +8,8 @@ from server.search_utils import find_bounding_box, is_within_search_radius
 SHOPS_BY_LAT = {}
 SHOPS_BY_LNG = {}
 SHOPS_BY_TAG = defaultdict(list)
-TAGS_BY_NAME = {}
 SHOPS_BY_ID = {}
+TAGS_BY_NAME = {}
 
 
 """
@@ -91,11 +91,25 @@ def _process_tags(data_path_fn):
             SHOPS_BY_TAG[tag_id].append(shop_id)
 
 
-def process_data():
-    """Process csv files and store data in memory."""
-    _process_shops()
-    _process_products()
-    _process_tags()
+def process_data(app):
+    """This process the data stored in csv files and constructs dictionaries to
+    store this data in memory. 5 dictionaries are created:
+    * SHOPS_BY_LAT of the form {latitude: shop_id, ...}
+    * SHOPS_BY_LNG of the form {longitude: shop_id, ...}
+    * SHOPS_BY_TAG of the form {tag_id: shop_id}
+    * SHOPS_BY_ID of the form {shop_id: {<shop_data>}}
+    * TAGS_BY_NAME of the form {tag_name: tag_id}
+
+    These are structured in such a way to aid efficient lookups in
+    find_most_popular_products_in_search_area. This however comes as the expense
+    of duplication of information and increased memory usuage. Given that there
+    are currently only around 10000 products and 10000 shops, there is probably
+    not much in it. But it paves the way for having more data items.
+    """
+    data_path_fn = data_path(app)
+    _process_shops(data_path_fn)
+    _process_products(data_path_fn)
+    _process_tags(data_path_fn)
 
 
 def find_most_popular_products_in_search_area(

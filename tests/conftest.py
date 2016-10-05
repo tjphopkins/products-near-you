@@ -56,6 +56,9 @@ def app(request):
         'TESTING': True
     })
 
+    # TODO: over-ride data path with test data, so as to use a much smaller,
+    # data set for testing.
+
     # Establish an application context before running the tests.
     ctx = app.app_context()
     ctx.push()

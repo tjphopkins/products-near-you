@@ -28,14 +28,22 @@ _find_shops_within_search_radius_with_tag will need to be rewritten.
 """
 
 
-def _process_shops():
+def data_path(app):
+    def data_path_fn(filename):
+        data_path = app.config['DATA_PATH']
+        return u"%s/%s" % (data_path, filename)
+
+    return data_path_fn
+
+
+def _process_shops(data_path_fn):
     """
     Process shops.csv. Populates three dicts:
     * SHOPS_BY_LAT: shop_id keyed on lat
     * SHOPS_BY_LONG: shop_id keyed on lng
     * SHOPS_BY_ID: shop info keyed on id
     """
-    with open('data/shops.csv') as csvfile:
+    with open(data_path_fn('shops.csv')) as csvfile:
         shops_reader = csv.reader(csvfile)
         shops_reader.next() # ignore the first row since these are headings
         for row in shops_reader:
@@ -47,9 +55,9 @@ def _process_shops():
             }
 
 
-def _process_products():
+def _process_products(data_path_fn):
     """Process products.csv. Populates SHOPS_BY_ID with products."""
-    with open('data/products.csv') as csvfile:
+    with open(data_path_fn('products.csv')) as csvfile:
         products_reader = csv.reader(csvfile)
         products_reader.next()
         for row in products_reader:
@@ -61,20 +69,21 @@ def _process_products():
                     'popularity': popularity
                 })
 
-def _process_tags():
+
+def _process_tags(data_path_fn):
     """
     Process tags.csv and taggings.csv. Populates:
     * SHOPS_BY_TAG
     * TAGS_BY_NAME
     """
-    with open('data/tags.csv') as csvfile:
+    with open(data_path_fn('tags.csv')) as csvfile:
         tags_reader = csv.reader(csvfile)
         tags_reader.next()
         for row in tags_reader:
             tag_id, tag_name = row
             TAGS_BY_NAME[tag_name] = tag_id
 
-    with open('data/taggings.csv') as csvfile:
+    with open(data_path_fn('taggings.csv')) as csvfile:
         taggings_reader = csv.reader(csvfile)
         taggings_reader.next()
         for row in taggings_reader:

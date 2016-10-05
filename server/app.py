@@ -9,12 +9,11 @@ from server.data import process_data
 
 def create_app(settings_overrides=None):
     app = Flask(__name__)
-    # Allow cross-site requests. TODO: Limit this to client on
-    # localhost:8000
+    # Allow cross-site requests. TODO: Limit this to client on localhost:8000
     CORS(app)
     configure_settings(app, settings_overrides)
     configure_blueprints(app)
-    process_data()
+    process_data(app)
     return app
 
 

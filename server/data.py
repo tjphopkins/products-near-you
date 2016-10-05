@@ -12,22 +12,6 @@ SHOPS_BY_ID = {}
 TAGS_BY_NAME = {}
 
 
-"""
-TODO: Initially I thought that using scipy's KDTree to find all shops
-within a given distane of the search location wouldn't help us since
-lat/long are not linear with distance.
-However, after reading http://stackoverflow.com/questions/20654918/
-python-how-to-speed-up-calculation-of-distances-between-cities
-I see now that I could first convert to x,y,z coordinates and then use
-a kd-tree.
-
-In this case it would not be necessary to construct SHOPS_BY_LAT and
-SHOPS_BY_LNG, but instead an array of tuples of the form
-(shop_lat, shop_lng, shop_id), along with SHOPS_BY_ID and SHOPS_BY_TAG. Then
-_find_shops_within_search_radius_with_tag will need to be rewritten.
-"""
-
-
 def data_path(app):
     def data_path_fn(filename):
         data_path = app.config['DATA_PATH']
@@ -36,12 +20,30 @@ def data_path(app):
     return data_path_fn
 
 
-def _process_shops(data_path_fn):
+def process_data(app):
+    """Processes the data stored in csv files and constructs dictionaries to
+    store this data in memory. 5 dictionaries are created:
+    * SHOPS_BY_LAT of the form {latitude: shop_id, ...}
+    * SHOPS_BY_LNG of the form {longitude: shop_id, ...}
+    * SHOPS_BY_TAG of the form {tag_id: shop_id}
+    * SHOPS_BY_ID of the form {shop_id: {<shop_data>}}
+    * TAGS_BY_NAME of the form {tag_name: tag_id}
+
+    These are structured in such a way to aid efficient lookups in
+    find_most_popular_products_in_search_area. This however comes at the expense
+    of duplication of information and increased memory usuage. Given that there
+    are currently only around 10000 products and 10000 shops, there is probably
+    not much in it. But it paves the way for having more data items.
     """
-    Process shops.csv. Populates three dicts:
-    * SHOPS_BY_LAT: shop_id keyed on lat
-    * SHOPS_BY_LONG: shop_id keyed on lng
-    * SHOPS_BY_ID: shop info keyed on id
+    data_path_fn = data_path(app)
+    _process_shops(data_path_fn)
+    _process_products(data_path_fn)
+    _process_tags(data_path_fn)
+
+
+def _process_shops(data_path_fn):
+    """Processes the shops in shops.csv, populating SHOPS_BY_LAT,
+    SHOPS_BY_LONG and SHOPS_BY_ID
     """
     with open(data_path_fn('shops.csv')) as csvfile:
         shops_reader = csv.reader(csvfile)
@@ -56,12 +58,15 @@ def _process_shops(data_path_fn):
 
 
 def _process_products(data_path_fn):
-    """Process products.csv. Populates SHOPS_BY_ID with products."""
+    """Processes product data items in products.csv. Populates SHOPS_BY_ID
+    with products.
+    """
     with open(data_path_fn('products.csv')) as csvfile:
         products_reader = csv.reader(csvfile)
         products_reader.next()
         for row in products_reader:
             product_id, shop_id, title, popularity, quantity = row
+            # only record the product if there is at leat 1 available
             if quantity > 0:
                 SHOPS_BY_ID[shop_id]['products'].append({
                     'id': product_id,
@@ -71,10 +76,8 @@ def _process_products(data_path_fn):
 
 
 def _process_tags(data_path_fn):
-    """
-    Process tags.csv and taggings.csv. Populates:
-    * SHOPS_BY_TAG
-    * TAGS_BY_NAME
+    """Processes tags.csv and taggings.csv, populating SHOPS_BY_TAG and
+    TAGS_BY_NAME
     """
     with open(data_path_fn('tags.csv')) as csvfile:
         tags_reader = csv.reader(csvfile)
@@ -91,32 +94,20 @@ def _process_tags(data_path_fn):
             SHOPS_BY_TAG[tag_id].append(shop_id)
 
 
-def process_data(app):
-    """This process the data stored in csv files and constructs dictionaries to
-    store this data in memory. 5 dictionaries are created:
-    * SHOPS_BY_LAT of the form {latitude: shop_id, ...}
-    * SHOPS_BY_LNG of the form {longitude: shop_id, ...}
-    * SHOPS_BY_TAG of the form {tag_id: shop_id}
-    * SHOPS_BY_ID of the form {shop_id: {<shop_data>}}
-    * TAGS_BY_NAME of the form {tag_name: tag_id}
-
-    These are structured in such a way to aid efficient lookups in
-    find_most_popular_products_in_search_area. This however comes as the expense
-    of duplication of information and increased memory usuage. Given that there
-    are currently only around 10000 products and 10000 shops, there is probably
-    not much in it. But it paves the way for having more data items.
-    """
-    data_path_fn = data_path(app)
-    _process_shops(data_path_fn)
-    _process_products(data_path_fn)
-    _process_tags(data_path_fn)
-
-
 def find_most_popular_products_in_search_area(
-        search_lat, search_lng, search_radius, num_products, tags):
+        search_lat, search_lng, search_radius, tags, num_products):
     """
+    Queries the stored data to find the most popular <num_products> products in
+    shops within <search_radius> of the search location given by <search_lat>
+    and <search_lng> and with <tags>.
+
+    To be called by the api search endpoint.
+
     :arg search_lat float - latitude of search location in degrees
     :arg search_lng float - longitude of serch location in degrees
+    :arg search_radius float - radius around search location in which to search,
+                               in km
+    :arg tags list - list of tag names
     :arg num_products int - number of products to return
     """
     shop_ids = _find_shops_within_search_radius_with_tag(
@@ -125,6 +116,10 @@ def find_most_popular_products_in_search_area(
 
 
 def _filter_shops_by_tag(shops, tags):
+    """Given a list of shop ids and a list of tag names, filters out those
+    shops that do not have one of the tags associated with them. Returns the
+    filtered list of shop ids.
+    """
     shops_with_at_least_one_tag = []
     tag_ids = [TAGS_BY_NAME[tag_name] for tag_name in tags
                if TAGS_BY_NAME.get(tag_name)]
@@ -137,20 +132,16 @@ def _filter_shops_by_tag(shops, tags):
 def _find_shops_within_search_radius_with_tag(
         search_lat, search_lng, search_radius, tags):
     """
-    Returns a list of shop_ids corresponding to shops within search_radius
+    Returns a list of shop_ids corresponding to shops within <search_radius>
     from the search location.
 
     :arg lat float - latitude of search location in degrees
     :arg lng float - longitude of search location in degrees
-    :arg search_radius int - search radius
-    :arg tags array  - array of tag names
+    :arg search_radius int - search radius in k,
+    :arg tags array  - list of tag names
     """
-
-    """
-    Find a bound lat/lng box to narrow down the search. Unfortunately,
-    given that the shops are all relatively close to each other, this doesn't
-    narrow down the search as much as I had hoped.
-    """
+    # Find bounding min and max latitude and longitudes to narrow down the
+    # search. Please see note in THOUGHTS.md regarding this method.
     bounding_box = find_bounding_box(search_lat, search_lng, search_radius)
 
     shops_in_lat_bounds = [
@@ -167,7 +158,7 @@ def _find_shops_within_search_radius_with_tag(
         set(shops_in_lng_bounds))
 
     # Narrow down further by tag before checking actual distances from
-    # search location
+    # search location.
     if tags:
         shops_to_check = _filter_shops_by_tag(shops_in_bounding_box, tags)
     else:
@@ -185,7 +176,7 @@ def _find_shops_within_search_radius_with_tag(
 
 
 def _find_most_popular_products_by_shops(shop_ids, num_products):
-    """Given a list of shop ids, returns a list of the num_products
+    """Given a list of shop ids, returns a list of the <num_products>
     most popular products in these shops.
     """
     products = []

@@ -78,6 +78,6 @@ def search():
         })
 
     products = find_most_popular_products_in_search_area(
-        lat, lng, radius, count, tags)
+        lat, lng, radius, tags, count)
 
     return jsonify({'products': products})
